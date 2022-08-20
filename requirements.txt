@@ -1,0 +1,6 @@
+pymatgen
+crystal-toolkit
+dash
+pandas
+gunicorn==20.0.4
+git+https://github.com/materialsproject/dash-mp-components.git@main
