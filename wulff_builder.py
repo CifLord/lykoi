@@ -25,22 +25,6 @@ app.layout = html.Div([
         style_cell={ "textAlign": "center", 'minWidth': '100px'}, 
         fill_width=False
     ),
-    # make a table for testing
-    dash_table.DataTable(
-        id='ddd',
-        columns=[{'name': 'a', 'id': 'a',
-                  'deletable': False, 'renamable': False},
-                 {'name': 'b', 'id': 'b',
-                  'deletable': False, 'renamable': False},
-                 {'name': 'c', 'id': 'c',
-                  'deletable': False, 'renamable': False},
-                 ],
-        data=[{'a': 1, 'b': 1, 'c': 1}],
-        editable=True,
-        row_deletable=False,
-        style_cell={ "textAlign": "center", 'minWidth': '100px'}, 
-        fill_width=False
-    ),
     # make a table for the angles lattice parameters
     dash_table.DataTable(
         id='angles',
