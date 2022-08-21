@@ -64,6 +64,7 @@ app.layout = html.Div([
 
     # add a button for adding more facets
     html.Button('Add surface', id='editing-rows-button', n_clicks=0),
+    dcc.Input(id="MPID", type="text", placeholder="MPID", style={'marginRight':'10px'}),
     dcc.Graph(id='wulff_shape')
 ])
 
