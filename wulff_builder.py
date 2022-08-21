@@ -3,6 +3,8 @@ from dash.dependencies import Input, Output, State
 import sys
 from pymatgen.analysis.wulff import WulffShape
 from pymatgen.core.structure import Lattice
+from pymatgen.ext.matproj import MPRester
+mpr = MPRester('mlcC4gtXFVqN9WLv')
 
 app = Dash(__name__)
 server = app.server
@@ -81,16 +83,26 @@ def add_row(n_clicks, rows, columns):
     Output('wulff_shape', 'figure'),
     Input('hkl_and_surface_energy', 'data'),
     Input('abc', 'data'),
-    Input('angles', 'data'))
-def display_output(hkl_and_se, abc, angles):
-    miller_indices = [(int(row['h']), int(row['k']), int(row['l'])) for row in hkl_and_se]
-    surface_energies = [float(row['surface_energy']) for row in hkl_and_se]
-    abc = abc[0]
-    angles = angles[0]
-    latt = Lattice.from_parameters(float(abc['a']), float(abc['b']), float(abc['c']), 
-                                   float(angles['alpha']), float(angles['beta']), float(angles['gamma']))
+    Input('angles', 'data'),
+    Input("MPID", "value"))
+def display_wulff_shape(hkl_and_se, abc, angles, mpid=None):
     
+    if mpid:
+        surface_data = mpr.get_surface_data(mpid)
+        miller_indices = [tuple(surf['miller_index']) for surf in surface_data['surfaces']]
+        surface_energies = [surf['surface_energy'] for surf in surface_data['surfaces']]
+        latt = mpr.get_structure_by_material_id(mpid, conventional_unit_cell=True).lattice 
+
+    else:
+        miller_indices = [(int(row['h']), int(row['k']), int(row['l'])) for row in hkl_and_se]
+        surface_energies = [float(row['surface_energy']) for row in hkl_and_se]
+        abc = abc[0]
+        angles = angles[0]
+        latt = Lattice.from_parameters(float(abc['a']), float(abc['b']), float(abc['c']), 
+                                       float(angles['alpha']), float(angles['beta']), float(angles['gamma']))
+        
     wulff = WulffShape(latt, miller_indices, surface_energies)    
+        
     return wulff.get_plotly()
 
 if __name__ == '__main__':
