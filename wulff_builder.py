@@ -80,6 +80,9 @@ app.layout = html.Div([
                style={'width': '100%', 'height': '60px', 'lineHeight': '60px',
                       'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
                       'textAlign': 'center', 'margin': '10px'}),
+    html.Button('Calculate surface energy', id='calculate_button', n_clicks=0),
+    html.Div(id='calculated_surface_energy'),
+
 ])
 
 @app.callback(
@@ -89,6 +92,10 @@ app.layout = html.Div([
     Output('angles', 'data'),
     Output('MPID', 'value'), # returns nothing in order to clear input box
     Output('editing-rows-button', 'n_clicks'), # resets n_clicks to 0 to avoid creating new rows for each input
+    Output('calculate_button','disabled'),
+    Output('calculated_surface_energy', 'children'),
+    Output('calculate_button', 'n_clicks'), # resets n_clicks to 0 to avoid creating new rows for each input
+
     Input('hkl_and_surface_energy', 'data'),
     Input('abc', 'data'),
     Input('angles', 'data'),
@@ -96,8 +103,11 @@ app.layout = html.Div([
     State('hkl_and_surface_energy', 'data'),
     Input("MPID", "value"),
     Input('editing-rows-button', 'n_clicks'),
-    Input('slab_vrun', 'contents'))
-def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=None, n_clicks=0, vrun=None):
+    Input('calculate_button', 'n_clicks'),
+    Input('slab_vrun', 'contents'),
+    Input('bulk_vrun', 'contents'))
+def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, 
+                        mpid=None, n_clicks=0, calculate=0, slab_vrun=None, bulk_vrun=None):
     
     columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
              {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
@@ -107,16 +117,29 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=Non
              {'name': 'Area fraction', 'id': 'area_frac', 
               'deletable': False, 'renamable': False}]  
     
-    if vrun:
-        content_type, content_string = vrun.split(',')
+    if slab_vrun:
+        content_type, content_string = slab_vrun.split(',')
         decoded = base64.b64decode(content_string)
-        e = ET.fromstring(decoded)
         f = open('vasprun.xml', 'wb')
         f.write(decoded)
         f.close()
-        vrun = Vasprun('vasprun.xml')
-        final_energy = vrun.final_energy
-        slab = vrun.final_structure
+        slab_vrun = Vasprun('vasprun.xml')
+        slab_energy = slab_vrun.final_energy
+        slab = slab_vrun.final_structure
+    if bulk_vrun:
+        content_type, content_string = bulk_vrun.split(',')
+        decoded = base64.b64decode(content_string)
+        f = open('vasprun.xml', 'wb')
+        f.write(decoded)
+        f.close()
+        bulk_vrun = Vasprun('vasprun.xml')
+        bulk_energy = bulk_vrun.final_energy
+        bulk = bulk_vrun.final_structure
+    if calculate > 0:
+        slabentry = SlabEntry(slab, slab_energy, [1,1,1])
+        calc_surface_energy = '%.3f' %(slabentry.surface_energy(ComputedStructureEntry(bulk, bulk_energy)))
+    else:
+        calc_surface_energy = ''
 
     if n_clicks > 0:
         rows.append({c['id']: '' for c in columns if c['id'] != 'area_frac'})
@@ -144,16 +167,19 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=Non
         latt = Lattice.from_parameters(float(abc[0]['a']), float(abc[0]['b']), float(abc[0]['c']), 
                                        float(angles[0]['alpha']), float(angles[0]['beta']), float(angles[0]['gamma']))
         
+    slab_vrun = None if calculate > 0 else slab_vrun
+    bulk_vrun = None if calculate > 0 else bulk_vrun
+        
     try:
         wulff = WulffShape(latt, miller_indices, surface_energies)
         # add the area fractions
         for i, row in enumerate(rows):
             if all([v != '' and v != None for v in row.values()]):
                 rows[i]['area_frac'] = '%.3f' %(wulff.area_fraction_dict[tuple([int(row['h']), int(row['k']), int(row['l'])])])
-        return wulff.get_plotly(), rows, abc, angles, '', 0
+        return wulff.get_plotly(), rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
     except QhullError:
         # If a Wulff shape cannot be enclosed, return the previous Wulff shape
-        return old_wulff_shape, rows, abc, angles, '', 0
+        return old_wulff_shape, rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
     
 if __name__ == '__main__':
     app.run_server(debug=True)
