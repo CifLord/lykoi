@@ -54,8 +54,10 @@ app.layout = html.Div([
                  {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
                  {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False},
                  {'name': 'Surface energy (eV/Å^2)', 'id': 'surface_energy', 
+                  'deletable': False, 'renamable': False},
+                 {'name': 'Area fraction', 'id': 'area_frac', 
                   'deletable': False, 'renamable': False}],
-        data=[{'h': 1, 'k': 0, 'l': 0, 'surface_energy': 1}],
+        data=[{'h': 1, 'k': 0, 'l': 0, 'surface_energy': 1, 'area_frac': 1}],
         editable=True,
         row_deletable=True,
         style_cell={"textAlign": "center", 'minWidth': '100px'},
@@ -85,16 +87,17 @@ app.layout = html.Div([
     Input('editing-rows-button', 'n_clicks'))
 def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=None, n_clicks=0):
     
-    columns = [{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False}, 
-               {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False}, 
-               {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False}, 
-               {'name': 'Surface energy (eV/Å^2)', 'id': 'surface_energy', 'deletable': False, 'renamable': False}]
-    print(n_clicks)
+    columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
+             {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
+             {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False},
+             {'name': 'Surface energy (eV/Å^2)', 'id': 'surface_energy', 
+              'deletable': False, 'renamable': False},
+             {'name': 'Area fraction', 'id': 'area_frac', 
+              'deletable': False, 'renamable': False}]    
+
     if n_clicks > 0:
         rows.append({c['id']: '' for c in columns})
     if mpid:
-
-
         surface_data = mpr.get_surface_data(mpid)
         miller_indices = [tuple(surf['miller_index']) for surf in surface_data['surfaces']]
         surface_energies = [surf['surface_energy'] for surf in surface_data['surfaces']]
@@ -119,11 +122,14 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=Non
                                        float(angles[0]['alpha']), float(angles[0]['beta']), float(angles[0]['gamma']))
         
     try:
-        wulff = WulffShape(latt, miller_indices, surface_energies)    
+        wulff = WulffShape(latt, miller_indices, surface_energies)
+        # add the area fractions
+        for i, row in enumerate(rows):
+            rows[i]['area_frac'] = '%.3f' %(wulff.area_fraction_dict[tuple([row['h'], row['k'], row['l']])])
         return wulff.get_plotly(), rows, abc, angles, '', 0
     except QhullError:
         # If a Wulff shape cannot be enclosed, return the previous Wulff shape
         return old_wulff_shape, rows, abc, angles, '', 0
-        
+            
 if __name__ == '__main__':
     app.run_server(debug=True)
