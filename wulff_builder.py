@@ -81,7 +81,18 @@ app.layout = html.Div([
                       'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
                       'textAlign': 'center', 'margin': '10px'}),
     html.Button('Calculate surface energy', id='calculate_button', n_clicks=0),
-    html.Div(id='calculated_surface_energy'),
+    # make a table for the miller index facets for uploaded xml files
+    dash_table.DataTable(
+        id='hkl_xml',
+        columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
+                 {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
+                 {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False}],
+        data=[{'h': 1, 'k': 0, 'l': 0}],
+        editable=True,
+        row_deletable=False,
+        style_cell={"textAlign": "center", 'minWidth': '100px'},
+        fill_width=False
+    ),
 
 ])
 
@@ -93,21 +104,20 @@ app.layout = html.Div([
     Output('MPID', 'value'), # returns nothing in order to clear input box
     Output('editing-rows-button', 'n_clicks'), # resets n_clicks to 0 to avoid creating new rows for each input
     Output('calculate_button','disabled'),
-    Output('calculated_surface_energy', 'children'),
     Output('calculate_button', 'n_clicks'), # resets n_clicks to 0 to avoid creating new rows for each input
 
     Input('hkl_and_surface_energy', 'data'),
     Input('abc', 'data'),
     Input('angles', 'data'),
     Input('wulff_shape', 'figure'),
-    State('hkl_and_surface_energy', 'data'),
     Input("MPID", "value"),
     Input('editing-rows-button', 'n_clicks'),
     Input('calculate_button', 'n_clicks'),
     Input('slab_vrun', 'contents'),
-    Input('bulk_vrun', 'contents'))
-def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, 
-                        mpid=None, n_clicks=0, calculate=0, slab_vrun=None, bulk_vrun=None):
+    Input('bulk_vrun', 'contents'),
+    Input('hkl_xml', 'data'))
+def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, 
+                        mpid=None, n_clicks=0, calculate=0, slab_vrun=None, bulk_vrun=None, hkl_xml=None):
     
     columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
              {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
@@ -136,13 +146,16 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows,
         bulk_energy = bulk_vrun.final_energy
         bulk = bulk_vrun.final_structure
     if calculate > 0:
-        slabentry = SlabEntry(slab, slab_energy, [1,1,1])
-        calc_surface_energy = '%.3f' %(slabentry.surface_energy(ComputedStructureEntry(bulk, bulk_energy)))
+        hkl = (int(hkl_xml[0]['h']), int(hkl_xml[0]['k']), int(hkl_xml[0]['l']))
+        slabentry = SlabEntry(slab, slab_energy, hkl)
+        calc_surface_energy = slabentry.surface_energy(ComputedStructureEntry(bulk, bulk_energy))
+        hkl_and_se.append({'h': hkl[0], 'k': hkl[1], 'l': hkl[-1], 'surface_energy': '%.3f' %(calc_surface_energy)})
+        
     else:
         calc_surface_energy = ''
 
     if n_clicks > 0:
-        rows.append({c['id']: '' for c in columns if c['id'] != 'area_frac'})
+        hkl_and_se.append({c['id']: '' for c in columns if c['id'] != 'area_frac'})
     if mpid:
         surface_data = mpr.get_surface_data(mpid)
         miller_indices = [tuple(surf['miller_index']) for surf in surface_data['surfaces']]
@@ -154,9 +167,9 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows,
         angles = [{'alpha': latt.alpha, 'beta': latt.beta, 'gamma': latt.gamma}]
 
         # reset the table for this particular mpid
-        rows=[]
+        hkl_and_se=[]
         for i, hkl in enumerate(miller_indices):
-            rows.append({'h': hkl[0], 'k': hkl[1], 'l': hkl[-1], 'surface_energy': '%.3f' %(surface_energies[i])})
+            hkl_and_se.append({'h': hkl[0], 'k': hkl[1], 'l': hkl[-1], 'surface_energy': '%.3f' %(surface_energies[i])})
         
     else:
         # only consider rows with appropriate values for h, k, l and surface energy, ignore otherwise 
@@ -171,17 +184,18 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows,
     bulk_vrun = None if calculate > 0 else bulk_vrun
         
     try:
+        print(miller_indices)
         wulff = WulffShape(latt, miller_indices, surface_energies)
         # add the area fractions
-        for i, row in enumerate(rows):
+        for i, row in enumerate(hkl_and_se):
             if all([v != '' and v != None for v in row.values()]):
-                rows[i]['area_frac'] = '%.3f' %(wulff.area_fraction_dict[tuple([int(row['h']), int(row['k']), int(row['l'])])])
-        return wulff.get_plotly(), rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, os.getcwd(), 0
-        # return wulff.get_plotly(), rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
+                hkl_and_se[i]['area_frac'] = '%.3f' %(wulff.area_fraction_dict[tuple([int(row['h']), 
+                                                                                int(row['k']), 
+                                                                                int(row['l'])])])
+        return wulff.get_plotly(), hkl_and_se, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, 0
     except QhullError:
         # If a Wulff shape cannot be enclosed, return the previous Wulff shape
-        return old_wulff_shape, rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, os.getcwd(), 0
-        # return old_wulff_shape, rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
+        return old_wulff_shape, hkl_and_se, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, 0
     
 if __name__ == '__main__':
     app.run_server(debug=True)
