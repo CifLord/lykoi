@@ -1,6 +1,6 @@
 from dash import Dash, dash_table, dcc, html
 from dash.dependencies import Input, Output, State
-import sys
+import sys, os
 from pymatgen.analysis.wulff import WulffShape
 from pymatgen.core.structure import Lattice
 from pymatgen.ext.matproj import MPRester
@@ -176,10 +176,12 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows,
         for i, row in enumerate(rows):
             if all([v != '' and v != None for v in row.values()]):
                 rows[i]['area_frac'] = '%.3f' %(wulff.area_fraction_dict[tuple([int(row['h']), int(row['k']), int(row['l'])])])
-        return wulff.get_plotly(), rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
+        return wulff.get_plotly(), rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, os.getcwd(), 0
+        # return wulff.get_plotly(), rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
     except QhullError:
         # If a Wulff shape cannot be enclosed, return the previous Wulff shape
-        return old_wulff_shape, rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
+        return old_wulff_shape, rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, os.getcwd(), 0
+        # return old_wulff_shape, rows, abc, angles, '', 0, slab_vrun == None or bulk_vrun == None, calc_surface_energy, 0
     
 if __name__ == '__main__':
     app.run_server(debug=True)
