@@ -53,7 +53,7 @@ app.layout = html.Div([
         columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
                  {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
                  {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False},
-                 {'name': 'Surface energy (eV/Å^2)', 'id': 'surface_energy', 
+                 {'name': 'Surface energy', 'id': 'surface_energy', 
                   'deletable': False, 'renamable': False},
                  {'name': 'Area fraction', 'id': 'area_frac', 
                   'deletable': False, 'renamable': False}],
@@ -90,13 +90,13 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=Non
     columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
              {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
              {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False},
-             {'name': 'Surface energy (eV/Å^2)', 'id': 'surface_energy', 
+             {'name': 'Surface energy', 'id': 'surface_energy', 
               'deletable': False, 'renamable': False},
              {'name': 'Area fraction', 'id': 'area_frac', 
               'deletable': False, 'renamable': False}]    
 
     if n_clicks > 0:
-        rows.append({c['id']: '' for c in columns})
+        rows.append({c['id']: '' for c in columns if c['id'] != 'area_frac'})
     if mpid:
         surface_data = mpr.get_surface_data(mpid)
         miller_indices = [tuple(surf['miller_index']) for surf in surface_data['surfaces']]
@@ -125,11 +125,11 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=Non
         wulff = WulffShape(latt, miller_indices, surface_energies)
         # add the area fractions
         for i, row in enumerate(rows):
-            rows[i]['area_frac'] = '%.3f' %(wulff.area_fraction_dict[tuple([row['h'], row['k'], row['l']])])
+            if all([v != '' and v != None for v in row.values()]):
+                rows[i]['area_frac'] = '%.3f' %(wulff.area_fraction_dict[tuple([int(row['h']), int(row['k']), int(row['l'])])])
         return wulff.get_plotly(), rows, abc, angles, '', 0
     except QhullError:
         # If a Wulff shape cannot be enclosed, return the previous Wulff shape
-        return old_wulff_shape, rows, abc, angles, '', 0
-            
+        return old_wulff_shape, rows, abc, angles, '', 0            
 if __name__ == '__main__':
     app.run_server(debug=True)
