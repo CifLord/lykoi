@@ -80,20 +80,13 @@ app.layout = html.Div([
                style={'width': '100%', 'height': '60px', 'lineHeight': '60px',
                       'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
                       'textAlign': 'center', 'margin': '10px'}),
-    html.Button('Calculate surface energy', id='calculate_button', n_clicks=0),
     # make a table for the miller index facets for uploaded xml files
-    dash_table.DataTable(
-        id='hkl_xml',
-        columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
-                 {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
-                 {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False}],
-        data=[{'h': 1, 'k': 0, 'l': 0}],
-        editable=True,
-        row_deletable=False,
-        style_cell={"textAlign": "center", 'minWidth': '100px'},
-        fill_width=False
-    ),
-
+    dash_table.DataTable(id='hkl_xml', columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
+                                                {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
+                                                {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False}],
+                         data=[{'h': 1, 'k': 0, 'l': 0}], editable=True, row_deletable=False, 
+                         style_cell={"textAlign": "center", 'minWidth': '100px'}, fill_width=False),
+    html.Button('Calculate surface energy', id='calculate_button', n_clicks=0),
 ])
 
 @app.callback(
@@ -114,10 +107,13 @@ app.layout = html.Div([
     Input('editing-rows-button', 'n_clicks'),
     Input('calculate_button', 'n_clicks'),
     Input('slab_vrun', 'contents'),
+    Input('slab_vrun', 'filename'),
     Input('bulk_vrun', 'contents'),
+    Input('bulk_vrun', 'filename'),
     Input('hkl_xml', 'data'))
 def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, 
-                        mpid=None, n_clicks=0, calculate=0, slab_vrun=None, bulk_vrun=None, hkl_xml=None):
+                        mpid=None, n_clicks=0, calculate=0, slab_vrun=None, slab_filename=None,
+                        bulk_vrun=None, bulk_filename=None, hkl_xml=None):
     
     columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
              {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
@@ -130,29 +126,27 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape,
     if slab_vrun:
         content_type, content_string = slab_vrun.split(',')
         decoded = base64.b64decode(content_string)
-        f = open('vasprun.xml', 'wb')
-        f.write(decoded)
-        f.close()
-        slab_vrun = Vasprun('vasprun.xml')
+        with NamedTemporaryFile(suffix=slab_filename) as tmp:
+            tmp.write(decoded)
+            tmp.flush()
+            slab_vrun = Vasprun(tmp.name)
         slab_energy = slab_vrun.final_energy
         slab = slab_vrun.final_structure
     if bulk_vrun:
         content_type, content_string = bulk_vrun.split(',')
         decoded = base64.b64decode(content_string)
-        f = open('vasprun.xml', 'wb')
-        f.write(decoded)
-        f.close()
-        bulk_vrun = Vasprun('vasprun.xml')
+        with NamedTemporaryFile(suffix=bulk_filename) as tmp:
+            tmp.write(decoded)
+            tmp.flush()
+            bulk_vrun = Vasprun(tmp.name)
         bulk_energy = bulk_vrun.final_energy
         bulk = bulk_vrun.final_structure
     if calculate > 0:
         hkl = (int(hkl_xml[0]['h']), int(hkl_xml[0]['k']), int(hkl_xml[0]['l']))
         slabentry = SlabEntry(slab, slab_energy, hkl)
         calc_surface_energy = slabentry.surface_energy(ComputedStructureEntry(bulk, bulk_energy))
-        hkl_and_se.append({'h': hkl[0], 'k': hkl[1], 'l': hkl[-1], 'surface_energy': '%.3f' %(calc_surface_energy)})
-        
-    else:
-        calc_surface_energy = ''
+        hkl_and_se.append({'h': hkl[0], 'k': hkl[1], 'l': hkl[-1],
+                           'surface_energy': '%.3f' %(calc_surface_energy*EV_PER_ANG2_TO_JOULES_PER_M2)})
 
     if n_clicks > 0:
         hkl_and_se.append({c['id']: '' for c in columns if c['id'] != 'area_frac'})
@@ -184,7 +178,6 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape,
     bulk_vrun = None if calculate > 0 else bulk_vrun
         
     try:
-        print(miller_indices)
         wulff = WulffShape(latt, miller_indices, surface_energies)
         # add the area fractions
         for i, row in enumerate(hkl_and_se):
