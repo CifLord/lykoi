@@ -69,6 +69,17 @@ app.layout = html.Div([
     # add a box for inputting specific mpid
     dcc.Input(id="MPID", type="text", placeholder="MPID", style={'marginRight':'10px'}, debounce=True),
     dcc.Graph(id='wulff_shape'),
+    
+    dcc.Upload(id='slab_vrun',
+               children=html.Div(['Slab ', html.A('vasprun.xml file')]),
+               style={'width': '100%', 'height': '60px', 'lineHeight': '60px',
+                      'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
+                      'textAlign': 'center', 'margin': '10px'}),
+    dcc.Upload(id='bulk_vrun',
+               children=html.Div(['Bulk ', html.A('vasprun.xml file')]),
+               style={'width': '100%', 'height': '60px', 'lineHeight': '60px',
+                      'borderWidth': '1px', 'borderStyle': 'dashed', 'borderRadius': '5px',
+                      'textAlign': 'center', 'margin': '10px'}),
 ])
 
 @app.callback(
@@ -84,8 +95,9 @@ app.layout = html.Div([
     Input('wulff_shape', 'figure'),
     State('hkl_and_surface_energy', 'data'),
     Input("MPID", "value"),
-    Input('editing-rows-button', 'n_clicks'))
-def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=None, n_clicks=0):
+    Input('editing-rows-button', 'n_clicks'),
+    Input('slab_vrun', 'contents'))
+def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=None, n_clicks=0, vrun=None):
     
     columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
              {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
@@ -93,7 +105,18 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=Non
              {'name': 'Surface energy', 'id': 'surface_energy', 
               'deletable': False, 'renamable': False},
              {'name': 'Area fraction', 'id': 'area_frac', 
-              'deletable': False, 'renamable': False}]    
+              'deletable': False, 'renamable': False}]  
+    
+    if vrun:
+        content_type, content_string = vrun.split(',')
+        decoded = base64.b64decode(content_string)
+        e = ET.fromstring(decoded)
+        f = open('vasprun.xml', 'wb')
+        f.write(decoded)
+        f.close()
+        vrun = Vasprun('vasprun.xml')
+        final_energy = vrun.final_energy
+        slab = vrun.final_structure
 
     if n_clicks > 0:
         rows.append({c['id']: '' for c in columns if c['id'] != 'area_frac'})
@@ -130,6 +153,7 @@ def display_wulff_shape(hkl_and_se, abc, angles, old_wulff_shape, rows, mpid=Non
         return wulff.get_plotly(), rows, abc, angles, '', 0
     except QhullError:
         # If a Wulff shape cannot be enclosed, return the previous Wulff shape
-        return old_wulff_shape, rows, abc, angles, '', 0            
+        return old_wulff_shape, rows, abc, angles, '', 0
+    
 if __name__ == '__main__':
     app.run_server(debug=True)
