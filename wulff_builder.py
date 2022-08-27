@@ -24,9 +24,10 @@ app.layout = html.Div([
         data=[{'a': 1, 'b': 1, 'c': 1}],
         editable=True,
         row_deletable=False,
-        style_cell={ "textAlign": "center", 'minWidth': '100px'}, 
+        style_cell={"textAlign": "center", 'minWidth': '100px'}, 
         fill_width=False
     ),
+    
     # make a table for the angles lattice parameters
     dash_table.DataTable(
         id='angles',
@@ -47,25 +48,23 @@ app.layout = html.Div([
     # make a table for the miller index facets and surface energy
     dash_table.DataTable(
         id='hkl_and_surface_energy',
-        columns=[{'name': 'h', 'id': 'h',
-                  'deletable': False, 'renamable': False},
-                 {'name': 'k', 'id': 'k',
-                  'deletable': False, 'renamable': False},
-                 {'name': 'l', 'id': 'l',
-                  'deletable': False, 'renamable': False},
-                 {'name': 'Surface energy (eV/Å^2)', 'id': 'surface_energy',
+        columns=[{'name': 'h', 'id': 'h', 'deletable': False, 'renamable': False},
+                 {'name': 'k', 'id': 'k', 'deletable': False, 'renamable': False},
+                 {'name': 'l', 'id': 'l', 'deletable': False, 'renamable': False},
+                 {'name': 'Surface energy (eV/Å^2)', 'id': 'surface_energy', 
                   'deletable': False, 'renamable': False}],
         data=[{'h': 1, 'k': 0, 'l': 0, 'surface_energy': 1}],
         editable=True,
         row_deletable=True,
-        style_cell={ "textAlign": "center", 'minWidth': '100px'}, 
+        style_cell={"textAlign": "center", 'minWidth': '100px'},
         fill_width=False
     ),
 
     # add a button for adding more facets
     html.Button('Add surface', id='editing-rows-button', n_clicks=0),
-    dcc.Input(id="MPID", type="text", placeholder="MPID", style={'marginRight':'10px'}),
-    dcc.Graph(id='wulff_shape')
+    # add a box for inputting specific mpid
+    dcc.Input(id="MPID", type="text", placeholder="MPID", style={'marginRight':'10px'}, debounce=True),
+    dcc.Graph(id='wulff_shape'),
 ])
 
 # app function to allow additional facets upon click
