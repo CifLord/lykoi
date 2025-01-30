@@ -1,5 +1,4 @@
 git+https://github.com/CifLord/pymatgen.git@wulff
-crystal-toolkit
 dash
 pandas
 gunicorn==20.0.4
