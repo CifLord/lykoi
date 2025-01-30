@@ -1,4 +1,4 @@
-git+https://github.com/CifLord/pymatgen.git@wulff_bug
+git+https://github.com/CifLord/pymatgen.git@wulff
 crystal-toolkit
 dash
 pandas
