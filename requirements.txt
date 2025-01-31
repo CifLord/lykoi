@@ -1,4 +1,4 @@
-git+https://github.com/CifLord/pymatgen.git@wulff
+git+https://github.com/materialsproject/pymatgen.git
 dash
 pandas
 gunicorn==20.0.4
